@@ -25,9 +25,13 @@
     "audio5js": "mikaelkaron/audio5js-bower#develop",
     "troopjs": "3.0.0-pr.2+fa7fcdb",
     "jquery": "~2",
+    "when": "~3.4",
     "poly": "~0.6"
   },
   "devDependencies": {
     "requirejs": "~2.1"
+  },
+  "resolutions": {
+    "when": "~3.4"
   }
 }

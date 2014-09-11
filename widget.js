@@ -3,14 +3,16 @@ define([
 	"./config",
 	"audio5js",
 	"troopjs-util/merge",
+	"when",
 	"poly/array"
-], function (Widget, config, Audio5js, merge) {
+], function (Widget, config, Audio5js, merge, when) {
 	var ARRAY_PUSH = Array.prototype.push;
 	var EVENTS = config.events;
 	var METHODS = config.methods;
 	var SETTINGS = config.settings;
 	var PLAY = "play";
 	var PAUSE = "pause";
+	var PLAYING = "playing";
 	var METHOD_EVENT = {
 		"seek": "seeked",
 		"load": "loadstart"
@@ -30,7 +32,12 @@ define([
 					// Switch to see if we stack or override
 					switch (method) {
 						case PLAY:
-							if (promises.hasOwnProperty(PAUSE)) {
+							if (self[PLAYING]) {
+								return promises.hasOwnProperty(PLAY)
+									? promises[PLAY]
+									: promises[PLAY] = when.resolve();
+							}
+							else if (promises.hasOwnProperty(PAUSE)) {
 								promises[PAUSE].then(function () {
 									delete promises[PAUSE];
 								});
@@ -38,7 +45,12 @@ define([
 							break;
 
 						case PAUSE:
-							if (promises.hasOwnProperty(PLAY)) {
+							if (!self[PLAYING]) {
+								return promises.hasOwnProperty(PAUSE)
+									? promises[PAUSE]
+									: promises[PAUSE] = when.resolve();
+							}
+							else if (promises.hasOwnProperty(PLAY)) {
 								promises[PLAY].then(function () {
 									delete promises[PLAY];
 								});
