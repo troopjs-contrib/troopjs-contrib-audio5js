@@ -11,7 +11,7 @@ define([
 		"sig/start": function () {
 			var me = this;
 
-			return me.emit("audio5js/do/load", me[SRC]);
+			return me.emit("audio5js/do/load", me[SRC]).then(me.log);
 		},
 
 		"on/audio5js/canplay": function () {
@@ -57,12 +57,13 @@ define([
 		},
 
 		"dom:[data-action='play']/click": function () {
-			this.emit("audio5js/do/play");
+			var me = this;
+
+			me.emit("audio5js/do/play").then(me.log);
 		},
 
 		"dom:[data-action='pause']/click": function () {
-			this.emit("audio5js/do/pause");
-		},
+			var me = this;
 
 			me.emit("audio5js/do/pause").then(me.log);
 		},
@@ -71,7 +72,7 @@ define([
 			var me = this;
 			var $target = $($event.target);
 
-			me.emit("audio5js/do/seek", ($event.pageX - $target.offset().left) / $target.width() * me.prop("duration"));
+			me.emit("audio5js/do/seek", ($event.pageX - $target.offset().left) / $target.width() * me.prop("duration")).then(me.log);
 		},
 
 		"dom:.volume/change": function ($event) {
