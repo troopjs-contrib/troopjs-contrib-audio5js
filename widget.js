@@ -44,8 +44,7 @@ define([
 							}
 							break;
 
-						case SEEK:
-						case LOAD:
+						default:
 							if (promises.hasOwnProperty(method)) {
 								delete promises[method];
 							}
