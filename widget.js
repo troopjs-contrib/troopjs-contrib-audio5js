@@ -10,6 +10,10 @@ define([
 	var EVENTS = config.events;
 	var METHODS = config.methods;
 	var SETTINGS = config.settings;
+	var CALLEE = "callee";
+	var DEFERRED = "deferred";
+	var PROMISE = "promise";
+	var RESOLVE = "resolve";
 	var PLAY = "play";
 	var PAUSE = "pause";
 	var PLAYING = "playing";
@@ -21,58 +25,63 @@ define([
 	return Widget.extend({
 		"sig/initialize": function () {
 			var me = this;
-			var promises = {};
 
 			// Generate method overrides
 			var methods = [ PLAY, PAUSE, "seek", "load" ].reduce(function (result, method) {
 				result[method] = function () {
 					var self = this;
 					var args = arguments;
+					var callee = args[CALLEE];
+					var deferred;
 
-					// Switch to see if we stack or override
+					if (callee.hasOwnProperty(DEFERRED)) {
+						// Use DEFERRED if it exists
+						deferred = callee[DEFERRED];
+					}
+					else {
+						// Otherwise create and use resolved deferred
+						(deferred = callee[DEFERRED] = when.defer()).resolve();
+					}
+
 					switch (method) {
 						case PLAY:
+							// If we're playing, just return promise
 							if (self[PLAYING]) {
-								return promises.hasOwnProperty(PLAY)
-									? promises[PLAY]
-									: promises[PLAY] = when.resolve();
-							}
-							else if (promises.hasOwnProperty(PAUSE)) {
-								promises[PAUSE].then(function () {
-									delete promises[PAUSE];
-								});
+								return deferred[PROMISE];
 							}
 							break;
 
 						case PAUSE:
+							// If we're not playing, just return promise
 							if (!self[PLAYING]) {
-								return promises.hasOwnProperty(PAUSE)
-									? promises[PAUSE]
-									: promises[PAUSE] = when.resolve();
-							}
-							else if (promises.hasOwnProperty(PLAY)) {
-								promises[PLAY].then(function () {
-									delete promises[PLAY];
-								});
+								return deferred[PROMISE];
 							}
 							break;
-
-						default:
-							if (promises.hasOwnProperty(method)) {
-								delete promises[method];
-							}
 					}
 
-					// Return new or existing promise
-					return promises.hasOwnProperty(method)
-						? promises[method]
-						: promises[method] = me.task(function (resolve) {
-							// Add player event handler (once)
-							self.one(METHOD_EVENT.hasOwnProperty(method) ? METHOD_EVENT[method] : method, resolve);
+					// Calculate method_event
+					var method_event = METHOD_EVENT.hasOwnProperty(method) ? METHOD_EVENT[method] : method;
 
-							// Exec player method
-							self[method].apply(self, args);
-						});
+					// Reject previous
+					deferred.reject();
+
+					// Create new deferred
+					deferred = callee[DEFERRED] = when.defer();
+
+					// Add rejection handler ...
+					deferred[PROMISE].otherwise(function () {
+						// ... that removes the internal handler
+						self.off(method_event, deferred[RESOLVE]);
+					});
+
+					// Add internal handler (once)
+					self.one(method_event, deferred[RESOLVE]);
+
+					// Exec player method
+					self[method].apply(self, args);
+
+					// Return promise
+					return deferred[PROMISE];
 				};
 
 				return result;
