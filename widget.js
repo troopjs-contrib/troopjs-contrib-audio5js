@@ -9,9 +9,11 @@ define([
 	var EVENTS = config.events;
 	var METHODS = config.methods;
 	var SETTINGS = config.settings;
+	var PLAY = "play";
+	var PAUSE = "pause";
+	var SEEK = "seek";
+	var LOAD = "load";
 	var METHOD_EVENT = {
-		"play": "play",
-		"pause": "pause",
 		"seek": "seeked",
 		"load": "loadstart"
 	};
@@ -20,21 +22,37 @@ define([
 		"sig/initialize": function () {
 			var me = this;
 			var promises = {};
-			var methods = [ "play", "pause", "seek", "load" ].reduce(function (result, method) {
-				var method_event = METHOD_EVENT[method];
-
+			var methods = [ PLAY, PAUSE, SEEK, LOAD ].reduce(function (result, method) {
 				result[method] = function () {
 					var self = this;
 					var args = arguments;
 
+					switch (method) {
+						case PLAY:
+							if (promises.hasOwnProperty(PAUSE)) {
+								delete promises[PAUSE];
+							}
+							break;
+
+						case PAUSE:
+							if (promises.hasOwnProperty(PLAY)) {
+								delete promises[PLAY];
+							}
+							break;
+
+						case SEEK:
+						case LOAD:
+							if (promises.hasOwnProperty(method)) {
+								delete promises[method];
+							}
+					}
+
+					// Return new or existing promise
 					return promises.hasOwnProperty(method)
 						? promises[method]
 						: promises[method] = me.task(function (resolve) {
-							// Add player event handler
-							self.one(method_event, function () {
-								delete promises[method];
-								resolve(arguments);
-							});
+							// Add player event handler (once)
+							self.one(METHOD_EVENT.hasOwnProperty(method) ? METHOD_EVENT[method] : method, resolve);
 
 							// Exec player method
 							self[method].apply(self, args);
