@@ -30,13 +30,17 @@ define([
 					switch (method) {
 						case PLAY:
 							if (promises.hasOwnProperty(PAUSE)) {
-								delete promises[PAUSE];
+								promises[PAUSE].then(function () {
+									delete promises[PAUSE];
+								});
 							}
 							break;
 
 						case PAUSE:
 							if (promises.hasOwnProperty(PLAY)) {
-								delete promises[PLAY];
+								promises[PLAY].then(function () {
+									delete promises[PLAY];
+								});
 							}
 							break;
 
