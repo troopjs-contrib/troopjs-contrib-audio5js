@@ -2,17 +2,47 @@ define([
 	"troopjs-dom/component/widget",
 	"./config",
 	"audio5js",
-	"troopjs-util/merge"
+	"troopjs-util/merge",
+	"poly/array"
 ], function (Widget, config, Audio5js, merge) {
 	var ARRAY_PUSH = Array.prototype.push;
 	var EVENTS = config.events;
 	var METHODS = config.methods;
 	var SETTINGS = config.settings;
+	var METHOD_EVENT = {
+		"play": "play",
+		"pause": "pause",
+		"seek": "seeked",
+		"load": "loadstart"
+	};
 
 	return Widget.extend({
 		"sig/initialize": function () {
 			var me = this;
-			var methods = {};
+			var promises = {};
+			var methods = [ "play", "pause", "seek", "load" ].reduce(function (result, method) {
+				var method_event = METHOD_EVENT[method];
+
+				result[method] = function () {
+					var self = this;
+					var args = arguments;
+
+					return promises.hasOwnProperty(method)
+						? promises[method]
+						: promises[method] = me.task(function (resolve) {
+							// Add player event handler
+							self.one(method_event, function () {
+								delete promises[method];
+								resolve(arguments);
+							});
+
+							// Exec player method
+							self[method].apply(self, args);
+						});
+				};
+
+				return result;
+			}, {});
 
 			return me.task(function (resolve) {
 				// Create player
