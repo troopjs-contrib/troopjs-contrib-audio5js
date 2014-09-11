@@ -64,8 +64,7 @@ define([
 			this.emit("audio5js/do/pause");
 		},
 
-		"dom:[data-action='play-pause']/click": function () {
-			this.emit("audio5js/do/play-pause");
+			me.emit("audio5js/do/pause").then(me.log);
 		},
 
 		"dom:.progress/click": function ($event) {

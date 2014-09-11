@@ -32,7 +32,6 @@ define([
 			"load": "audio5js/do/load",
 			"play": "audio5js/do/play",
 			"pause": "audio5js/do/pause",
-			"playPause": "audio5js/do/play-pause",
 			"volume": "audio5js/do/volume",
 			"seek": "audio5js/do/seek"
 		}
