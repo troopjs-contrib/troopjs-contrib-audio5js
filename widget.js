@@ -11,8 +11,6 @@ define([
 	var SETTINGS = config.settings;
 	var PLAY = "play";
 	var PAUSE = "pause";
-	var SEEK = "seek";
-	var LOAD = "load";
 	var METHOD_EVENT = {
 		"seek": "seeked",
 		"load": "loadstart"
@@ -22,11 +20,14 @@ define([
 		"sig/initialize": function () {
 			var me = this;
 			var promises = {};
-			var methods = [ PLAY, PAUSE, SEEK, LOAD ].reduce(function (result, method) {
+
+			// Generate method overrides
+			var methods = [ PLAY, PAUSE, "seek", "load" ].reduce(function (result, method) {
 				result[method] = function () {
 					var self = this;
 					var args = arguments;
 
+					// Switch to see if we stack or override
 					switch (method) {
 						case PLAY:
 							if (promises.hasOwnProperty(PAUSE)) {
@@ -65,6 +66,7 @@ define([
 				return result;
 			}, {});
 
+			// Wrap player instantiation in task
 			return me.task(function (resolve) {
 				// Create player
 				new Audio5js(merge.call({}, SETTINGS, {
@@ -89,6 +91,7 @@ define([
 							.keys(METHODS)
 							.forEach(function (method) {
 								me.on(METHODS[method], function () {
+									// Return result from override or player
 									return methods.hasOwnProperty(method)
 										? methods[method].apply(self, arguments)
 										: self[method].apply(self, arguments);
