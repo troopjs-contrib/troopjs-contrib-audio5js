@@ -14,17 +14,6 @@ define([
 			return me.emit("audio5js/do/load", me[SRC]).then(me.log);
 		},
 
-		"on/audio5js/canplay": function () {
-			var duration = this.prop("duration") || 0;
-
-			this[$ELEMENT]
-				.find(".duration")
-					.text(Math.floor(duration / 60) + ":" + Math.floor(duration % 60))
-					.end()
-				.find("button")
-					.prop("disabled", false);
-		},
-
 		"on/audio5js/error": function () {
 			var $element = this[$ELEMENT];
 
