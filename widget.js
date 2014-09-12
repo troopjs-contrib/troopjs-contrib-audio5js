@@ -57,13 +57,16 @@ define([
 								return deferred[PROMISE];
 							}
 							break;
+
+						default:
+							// Reject previous deferred
+							deferred.reject();
 					}
 
-					// Calculate method_event
-					var method_event = METHOD_EVENT.hasOwnProperty(method) ? METHOD_EVENT[method] : method;
-
-					// Reject previous
-					deferred.reject();
+					// Map method_event if needed
+					var method_event = METHOD_EVENT.hasOwnProperty(method)
+						? METHOD_EVENT[method]
+						: method;
 
 					// Create new deferred
 					deferred = callee[DEFERRED] = when.defer();
