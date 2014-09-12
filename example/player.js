@@ -46,7 +46,7 @@ define([
 			var $element = this[$ELEMENT];
 
 			$element
-				.find(".played")
+				.find(".position")
 					.text(Math.floor(position / 60) + ":" + Math.floor(position % 60))
 					.end()
 				.find(".duration")
