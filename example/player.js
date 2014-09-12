@@ -26,9 +26,15 @@ define([
 		},
 
 		"on/audio5js/progress": function (loaded) {
-			this[$ELEMENT]
+			var me = this;
+			var duration = me.prop("duration") || 0;
+
+			me[$ELEMENT]
+				.find(".duration")
+					.text(Math.floor(duration / 60) + ":" + Math.floor(duration % 60))
+					.end()
 				.find(".loaded")
-				.val(loaded);
+					.val(loaded);
 		},
 
 		"on/audio5js/timeupdate": function (position, duration) {
