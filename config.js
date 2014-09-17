@@ -3,7 +3,6 @@ define([
 	"module",
 	"troopjs-util/merge"
 ], function (localRequire, module, merge) {
-	var REMOVE = {};
 	var PATH = localRequire
 		.toUrl("audio5js")
 		.split("/")
@@ -33,19 +32,8 @@ define([
 			"load": "audio5js/do/load",
 			"play": "audio5js/do/play",
 			"pause": "audio5js/do/pause",
-			"playPause": "audio5js/do/play-pause",
 			"volume": "audio5js/do/volume",
 			"seek": "audio5js/do/seek"
-		},
-
-		"attributes": {
-			"playing": function (value) {
-				return value === false
-					? REMOVE
-					: value;
-			}
 		}
-	}, module.config(), {
-		"remove": REMOVE
-	});
+	}, module.config());
 });

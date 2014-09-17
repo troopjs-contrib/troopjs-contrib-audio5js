@@ -11,74 +11,68 @@ define([
 		"sig/start": function () {
 			var me = this;
 
-			return me.emit("audio5js/do/load", me[SRC]);
-		},
-
-		"on/audio5js/canplay": function () {
-			var duration = this.prop("duration") || 0;
-
-			this[$ELEMENT]
-				.find(".duration")
-					.text(Math.floor(duration / 60) + ":" + Math.floor(duration % 60))
-					.end()
-				.find("button")
-					.prop("disabled", false);
+			return me.emit("audio5js/do/load", me[SRC]).then(me.log, me.error, me.info);
 		},
 
 		"on/audio5js/error": function () {
-			var $element = this[$ELEMENT];
+			var me = this;
 
-			$element
+			me[$ELEMENT]
 				.find(".error")
-					.text("Unable to load url " + $element.data("mp3"))
+					.text("Unable to load url " + me[SRC])
 					.end()
 				.find("button")
 					.prop("disabled", true);
 		},
 
 		"on/audio5js/progress": function (loaded) {
-			this[$ELEMENT]
+			var me = this;
+			var duration = me.prop("duration") || 0;
+
+			me[$ELEMENT]
+				.find(".duration")
+					.text(Math.floor(duration / 60) + ":" + Math.floor(duration % 60))
+					.end()
 				.find(".loaded")
-				.val(loaded);
+					.val(loaded);
 		},
 
 		"on/audio5js/timeupdate": function (position, duration) {
-			var $element = this[$ELEMENT];
-
-			$element
-				.find(".played")
+			this[$ELEMENT]
+				.find(".position")
 					.text(Math.floor(position / 60) + ":" + Math.floor(position % 60))
 					.end()
 				.find(".duration")
 					.text(Math.floor(duration / 60) + ":" + Math.floor(duration % 60))
 					.end()
 				.find(".progress")
-					.val(position === 0 && duration === 0 ? 0 : (position / duration) * 100);
+					.val(position === 0 || duration === 0 ? 0 : (position / duration) * 100);
 		},
 
 		"dom:[data-action='play']/click": function () {
-			this.emit("audio5js/do/play");
+			var me = this;
+
+			me.emit("audio5js/do/play").then(me.log, me.error, me.info);
 		},
 
 		"dom:[data-action='pause']/click": function () {
-			this.emit("audio5js/do/pause");
-		},
+			var me = this;
 
-		"dom:[data-action='play-pause']/click": function () {
-			this.emit("audio5js/do/play-pause");
+			me.emit("audio5js/do/pause").then(me.log, me.error, me.info);
 		},
 
 		"dom:.progress/click": function ($event) {
 			var me = this;
 			var $target = $($event.target);
 
-			me.emit("audio5js/do/seek", ($event.pageX - $target.offset().left) / $target.width() * me.prop("duration"));
+			me.emit("audio5js/do/seek", ($event.pageX - $target.offset().left) / $target.width() * me.prop("duration")).then(me.log, me.error, me.info);
 		},
 
 		"dom:.volume/change": function ($event) {
+			var me = this;
 			var $target = $($event.target);
 
-			this.emit("audio5js/do/volume", parseFloat($target.val()));
+			me.emit("audio5js/do/volume", parseFloat($target.val())).then(me.log, me.error, me.info);
 		}
 	});
 });

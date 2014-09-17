@@ -2,59 +2,124 @@ define([
 	"troopjs-dom/component/widget",
 	"./config",
 	"audio5js",
-	"troopjs-util/merge"
-], function (Widget, config, Audio5js, merge) {
+	"troopjs-util/merge",
+	"when",
+	"poly/array"
+], function (Widget, config, Audio5js, merge, when) {
 	var ARRAY_PUSH = Array.prototype.push;
-	var REMOVE = config.remove;
+	var ARRAY_FOREACH = Array.prototype.forEach;
 	var EVENTS = config.events;
 	var METHODS = config.methods;
-	var ATTRIBUTES = config.attributes;
 	var SETTINGS = config.settings;
-	var $ELEMENT = "$element";
-	var DURATION = "duration";
+	var CALLEE = "callee";
+	var DEFERRED = "deferred";
+	var PROMISE = "promise";
+	var RESOLVE = "resolve";
+	var NOTIFY = "notify";
+	var PLAY = "play";
+	var PAUSE = "pause";
 	var PLAYING = "playing";
-
-	function data(key, value_raw) {
-		var me = this;
-		var $element = me[$ELEMENT];
-		var value_map = key in ATTRIBUTES
-			? ATTRIBUTES[key].call(me, value_raw)
-			: value_raw;
-
-		// Remove
-		if (value_map === REMOVE) {
-			$element
-				.removeAttr("data-" + key)
-				.removeData(key);
-		}
-		// Set
-		else {
-			$element
-				.attr("data-" + key, value_map)
-				.data(key, value_map);
-		}
-
-		// Emit
-		me.emit("audio5js/property", key, value_raw, value_map);
-	}
+	var RESOLVE_EVENTS = {
+		"seek": [ "seeked" ],
+		"load": [ "canplay" ]
+	};
+	var NOTIFY_EVENTS = {
+		"seek": [ "seeking" ],
+		"load": [ "loadstart", "loadedmetadata" ]
+	};
 
 	return Widget.extend({
 		"sig/initialize": function () {
 			var me = this;
-			var events = {
-				"canplay": function () {
-					data.call(me, DURATION, this[DURATION]);
-				}
-			};
-			var methods = {
-				"play": function () {
-					data.call(me, PLAYING, true);
-				},
-				"pause": function () {
-					data.call(me, PLAYING, false);
-				}
-			};
 
+			// Generate method overrides
+			var methods = [ PLAY, PAUSE, "seek", "load" ].reduce(function (result, method) {
+				result[method] = function () {
+					var self = this;
+					var args = arguments;
+					var callee = args[CALLEE];
+					var deferred;
+
+					if (callee.hasOwnProperty(DEFERRED)) {
+						// Use DEFERRED if it exists
+						deferred = callee[DEFERRED];
+					}
+					else {
+						// Otherwise create and use resolved deferred
+						(deferred = callee[DEFERRED] = when.defer()).resolve();
+					}
+
+					switch (method) {
+						case PLAY:
+							// If we're playing, just return promise
+							if (self[PLAYING]) {
+								return deferred[PROMISE];
+							}
+							break;
+
+						case PAUSE:
+							// If we're not playing, just return promise
+							if (!self[PLAYING]) {
+								return deferred[PROMISE];
+							}
+							break;
+
+						default:
+							// Reject previous deferred
+							deferred.reject();
+					}
+
+					// Create new deferred
+					deferred = callee[DEFERRED] = when.defer();
+
+					// Iterate resolution events
+					ARRAY_FOREACH.call(RESOLVE_EVENTS.hasOwnProperty(method) ? RESOLVE_EVENTS[method] : [ method ], function (resolve_event) {
+						// Create resolve callback
+						var resolve = function () {
+							deferred[RESOLVE](resolve_event);
+						};
+
+						// Add resolution handler (once)
+						self.one(resolve_event, resolve);
+
+						// Add cleanup ...
+						deferred[PROMISE].ensure(function () {
+							// ... that removes the internal resolution handler
+							self.off(resolve_event, resolve);
+						});
+					});
+
+					// If we have notification events ...
+					if (NOTIFY_EVENTS.hasOwnProperty(method)) {
+						// ... iterate them
+						ARRAY_FOREACH.call(NOTIFY_EVENTS[method], function (notify_event) {
+							// Create notify callback
+							var notify = function () {
+								deferred[NOTIFY](notify_event);
+							};
+
+							// Add notification handler
+							self.on(notify_event, notify);
+
+							// Add cleanup ...
+							deferred[PROMISE].ensure(function () {
+								// ... that removes the internal notification handler
+								self.off(notify_event, notify);
+							});
+						});
+					}
+
+					// Exec player method
+					self[method].apply(self, args);
+
+					// Return promise
+					return deferred[PROMISE];
+				};
+
+				return result;
+			}, {});
+
+			// Wrap player instantiation in task
 			return me.task(function (resolve) {
 				// Create player
 				new Audio5js(merge.call({}, SETTINGS, {
@@ -68,15 +133,9 @@ define([
 							.keys(EVENTS)
 							.forEach(function (event) {
 								self.on(event, function () {
-									// Call custom
-									if (events.hasOwnProperty(event)) {
-										events[event].apply(this, arguments)
-									}
-
-									// Emit
 									var args = [ EVENTS[event] ];
 									ARRAY_PUSH.apply(args, arguments);
-									me.emit.apply(me, args);
+									return me.emit.apply(me, args);
 								}, self);
 							});
 
@@ -84,24 +143,19 @@ define([
 						Object
 							.keys(METHODS)
 							.forEach(function (method) {
-								// Add handler
 								me.on(METHODS[method], function () {
-									// Call custom
-									if (methods.hasOwnProperty(method)) {
-										methods[method].apply(self, arguments);
-									}
-
-									// Call self
-									return self[method].apply(self, arguments);
+									// Return result from override or player
+									return (methods.hasOwnProperty(method) ? methods[method].apply(self, arguments) : self[method].apply(self, arguments)) || method;
 								});
 							});
 
-						me["prop"] = function (key) {
+						// Add prop callbacks
+						me.on("audio5js/do/prop", me["prop"] = function prop(key) {
 							return self[key];
-						};
+						});
 
-						// Resolve with self
-						resolve(self);
+						// Resolve with ready emission
+						resolve(me.emit("audio5js/ready"));
 					}
 				}));
 			});
