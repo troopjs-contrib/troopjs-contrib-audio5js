@@ -7,6 +7,7 @@ define([
 	"poly/array"
 ], function (Widget, config, Audio5js, merge, when) {
 	var ARRAY_PUSH = Array.prototype.push;
+	var ARRAY_FOREACH = Array.prototype.forEach;
 	var EVENTS = config.events;
 	var METHODS = config.methods;
 	var SETTINGS = config.settings;
@@ -14,12 +15,17 @@ define([
 	var DEFERRED = "deferred";
 	var PROMISE = "promise";
 	var RESOLVE = "resolve";
+	var NOTIFY = "notify";
 	var PLAY = "play";
 	var PAUSE = "pause";
 	var PLAYING = "playing";
-	var METHOD_EVENT = {
-		"seek": "seeked",
-		"load": "loadstart"
+	var RESOLVE_EVENTS = {
+		"seek": [ "seeked" ],
+		"load": [ "canplay" ]
+	};
+	var NOTIFY_EVENTS = {
+		"seek": [ "seeking" ],
+		"load": [ "loadstart", "loadedmetadata" ]
 	};
 
 	return Widget.extend({
@@ -63,22 +69,45 @@ define([
 							deferred.reject();
 					}
 
-					// Map method_event if needed
-					var method_event = METHOD_EVENT.hasOwnProperty(method)
-						? METHOD_EVENT[method]
-						: method;
-
 					// Create new deferred
 					deferred = callee[DEFERRED] = when.defer();
 
-					// Add rejection handler ...
-					deferred[PROMISE].otherwise(function () {
-						// ... that removes the internal handler
-						self.off(method_event, deferred[RESOLVE]);
+					// Iterate resolution events
+					ARRAY_FOREACH.call(RESOLVE_EVENTS.hasOwnProperty(method) ? RESOLVE_EVENTS[method] : [ method ], function (resolve_event) {
+						// Create resolve callback
+						var resolve = function () {
+							deferred[RESOLVE](resolve_event);
+						};
+
+						// Add resolution handler (once)
+						self.one(resolve_event, resolve);
+
+						// Add cleanup ...
+						deferred[PROMISE].ensure(function () {
+							// ... that removes the internal resolution handler
+							self.off(resolve_event, resolve);
+						});
 					});
 
-					// Add internal handler (once)
-					self.one(method_event, deferred[RESOLVE]);
+					// If we have notification events ...
+					if (NOTIFY_EVENTS.hasOwnProperty(method)) {
+						// ... iterate them
+						ARRAY_FOREACH.call(NOTIFY_EVENTS[method], function (notify_event) {
+							// Create notify callback
+							var notify = function () {
+								deferred[NOTIFY](notify_event);
+							};
+
+							// Add notification handler
+							self.on(notify_event, notify);
+
+							// Add cleanup ...
+							deferred[PROMISE].ensure(function () {
+								// ... that removes the internal notification handler
+								self.off(notify_event, notify);
+							});
+						});
+					}
 
 					// Exec player method
 					self[method].apply(self, args);
@@ -116,9 +145,7 @@ define([
 							.forEach(function (method) {
 								me.on(METHODS[method], function () {
 									// Return result from override or player
-									return methods.hasOwnProperty(method)
-										? methods[method].apply(self, arguments)
-										: self[method].apply(self, arguments);
+									return (methods.hasOwnProperty(method) ? methods[method].apply(self, arguments) : self[method].apply(self, arguments)) || method;
 								});
 							});
 
