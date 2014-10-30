@@ -4,7 +4,8 @@ define([
 	"audio5js",
 	"troopjs-util/merge",
 	"when",
-	"poly/array"
+	"poly/array",
+	"poly/object"
 ], function (Widget, config, Audio5js, merge, when) {
 	var ARRAY_PUSH = Array.prototype.push;
 	var ARRAY_FOREACH = Array.prototype.forEach;
