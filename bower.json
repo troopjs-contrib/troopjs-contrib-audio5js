@@ -24,7 +24,7 @@
   "dependencies": {
     "audio5js": "3c45ae2b74bf37672e2818bf345727fb34e5ffc8",
     "troopjs": "3.0.0-pr.2+fa7fcdb",
-    "jquery": ">=1.8",
+    "jquery": ">=1.8.1",
     "when": "~3.4",
     "poly": "~0.6"
   },
