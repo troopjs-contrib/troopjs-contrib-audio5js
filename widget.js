@@ -4,8 +4,9 @@ define([
 	"audio5js",
 	"troopjs-util/merge",
 	"when",
+	"when/poll",
 	"poly/array"
-], function (Widget, config, Audio5js, merge, when) {
+], function (Widget, config, Audio5js, merge, when, poll) {
 	var ARRAY_PUSH = Array.prototype.push;
 	var ARRAY_FOREACH = Array.prototype.forEach;
 	var EVENTS = config.events;
@@ -27,6 +28,62 @@ define([
 		"seek": [ "seeking" ],
 		"load": [ "loadstart", "loadedmetadata" ]
 	};
+	var $ELEMENT = "$element";
+	var CUE_IN = "cueIn";
+
+	var last_interval_position = 0;
+	var last_position = 0;
+	var last_load_percent = 0;
+	var buffering_check_interval;
+
+	function check_buffering(toggle) {
+
+		var me = this;
+		var $element = me[$ELEMENT];
+		var $data = $element.data();
+
+		var cue_in = CUE_IN in $data
+			? parseFloat($data[CUE_IN])
+				: 0;
+
+		if(toggle) {
+			// cue point has not been seeked yet
+			if(last_position < cue_in) {
+				me.emit("audio5js/is/buffering", true);
+			}
+			// cue point has been seeked
+			else {
+				buffering_check_interval = poll(function() {
+					temp = last_position;
+
+					// audio is fully downloaded
+					if(last_load_percent == 100) {
+						me.emit("audio5js/is/buffering", false);
+					}
+					// position is the same as in the last iteration
+					else if (last_interval_position == temp) {
+						me.emit("audio5js/is/buffering", true);
+					}
+					// position is different to an iteration ago
+					else {
+						me.emit("audio5js/is/buffering", false);
+					}
+					last_interval_position = temp;
+				},
+				1000,
+				function() {
+					return last_load_percent == 100;
+				});
+			}
+		}
+		else {
+			// cue point has been seeked
+			if(last_position >= cue_in) {
+				buffering_check_interval.cancel();
+				me.publish("audio5js/is/buffering", false);
+			}
+		}
+	}
 
 	return Widget.extend({
 		"sig/initialize": function () {
@@ -154,11 +211,35 @@ define([
 							return self[key];
 						});
 
+						me.on("audio5js/timeupdate", function (position, duration) {
+							last_position = position;
+						});
+
 						// Resolve with ready emission
 						resolve(me.emit("audio5js/ready"));
 					}
 				}));
 			});
-		}
+		},
+
+		"on/audio5js/progress": function (load_percent) {
+			last_load_percent = load_percent;
+		},
+
+		"on/audio5js/play": function () {
+			check_buffering.call(this, true);
+		},
+
+		"on/audio5js/pause": function () {
+			check_buffering.call(this, false);
+		},
+
+		"on/audio5js/ended": function () {
+			check_buffering.call(this, false);
+		},
+
+		"sig/stop": function () {
+			check_buffering.call(this, false);
+		},
 	});
 });

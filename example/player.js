@@ -25,6 +25,15 @@ define([
 					.prop("disabled", true);
 		},
 
+		"on/audio5js/is/buffering": function (toggle) {
+			var me = this;
+			var message = toggle ? "buffering..." : "playing >";
+
+			me[$ELEMENT]
+				.find(".buffering")
+					.text(message);
+		},
+
 		"on/audio5js/progress": function (loaded) {
 			var me = this;
 			var duration = me.prop("duration") || 0;
