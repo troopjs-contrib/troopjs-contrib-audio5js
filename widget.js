@@ -34,54 +34,51 @@ define([
 	var last_interval_position = 0;
 	var last_position = 0;
 	var last_load_percent = 0;
-	var buffering_check_interval;
+	var buffering_check = true;
 
-	function check_buffering(toggle) {
+	function check_buffering() {
 
 		var me = this;
 		var $element = me[$ELEMENT];
 		var $data = $element.data();
-
 		var cue_in = CUE_IN in $data
 			? parseFloat($data[CUE_IN])
 				: 0;
 
-		if(toggle) {
-			// cue point has not been seeked yet
-			if(last_position < cue_in) {
-				me.emit("audio5js/is/buffering", true);
-			}
-			// cue point has been seeked
-			else {
-				buffering_check_interval = poll(function() {
-					temp = last_position;
+		buffering_check = true;
 
-					// audio is fully downloaded
-					if(last_load_percent == 100) {
-						me.emit("audio5js/is/buffering", false);
-					}
-					// position is the same as in the last iteration
-					else if (last_interval_position == temp) {
-						me.emit("audio5js/is/buffering", true);
-					}
-					// position is different to an iteration ago
-					else {
-						me.emit("audio5js/is/buffering", false);
-					}
-					last_interval_position = temp;
-				},
-				1000,
-				function() {
-					return last_load_percent == 100;
-				});
-			}
+		// cue point has not been seeked yet
+		if(last_position < cue_in) {
+			me.emit("audio5js/is/buffering", true);
 		}
+		// cue point has been seeked
 		else {
-			// cue point has been seeked
-			if(last_position >= cue_in) {
-				buffering_check_interval.cancel();
-				me.publish("audio5js/is/buffering", false);
-			}
+			var buffering_check_interval = poll(function() {
+				temp = last_position;
+
+				// explicit request to stop checking
+				if(!buffering_check) {
+					me.emit("audio5js/is/buffering", false);
+				}
+				// audio is fully downloaded
+				else if(last_load_percent == 100) {
+					me.emit("audio5js/is/buffering", false);
+				}
+				// position is the same as in the last iteration
+				else if (last_interval_position == temp) {
+					me.emit("audio5js/is/buffering", true);
+				}
+				// position is different to an iteration ago
+				else {
+					me.emit("audio5js/is/buffering", false);
+				}
+
+				last_interval_position = temp;
+			},
+			1000,
+			function() {
+				return ( (!buffering_check) || (last_load_percent == 100) );
+			});
 		}
 	}
 
@@ -227,19 +224,19 @@ define([
 		},
 
 		"on/audio5js/play": function () {
-			check_buffering.call(this, true);
+			check_buffering.call(this);
 		},
 
 		"on/audio5js/pause": function () {
-			check_buffering.call(this, false);
+			buffering_check = false;
 		},
 
 		"on/audio5js/ended": function () {
-			check_buffering.call(this, false);
+			buffering_check = false;
 		},
 
 		"sig/stop": function () {
-			check_buffering.call(this, false);
+			buffering_check = false;
 		},
 	});
 });
