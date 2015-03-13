@@ -3,15 +3,17 @@ define([
 	"./config",
 	"audio5js",
 	"troopjs-util/merge",
-	"when",
+	"when/when",
+  "when/poll",
 	"poly/array",
 	"poly/object"
-], function (Widget, config, Audio5js, merge, when) {
+], function (Widget, config, Audio5js, merge, when, poll) {
 	var ARRAY_PUSH = Array.prototype.push;
 	var ARRAY_FOREACH = Array.prototype.forEach;
 	var EVENTS = config.events;
 	var METHODS = config.methods;
 	var SETTINGS = config.settings;
+  var PHASE = "phase";
 	var CALLEE = "callee";
 	var DEFERRED = "deferred";
 	var PROMISE = "promise";
@@ -128,6 +130,9 @@ define([
 					"throw_errors": false,
 					"ready": function () {
 						var self = this;
+            var _progress;
+            var _position_new;
+            var _position_old;
 
 						// Process EVENTS
 						Object
@@ -154,6 +159,33 @@ define([
 						me.on("audio5js/do/prop", me["prop"] = function prop(key) {
 							return self[key];
 						});
+
+            me.on("audio5js/timeupdate", function (position) {
+              _position_new = position;
+            });
+
+            me.on("audio5js/progress", function (progress) {
+              _progress = progress;
+            });
+
+            poll(
+              function () {
+                if (_progress === 100 && me["buffering"] === true) {
+                  me.emit("audio5js/is/buffering", me["buffering"] = false);
+                }
+                if (_position_new === _position_old && me["buffering"] === false) {
+                  me.emit("audio5js/is/buffering", me["buffering"] = true);
+                }
+                else if (me["buffering"] === false) {
+                  me.emit("audio5js/is/buffering", me["buffering"] = true);
+                }
+
+                _position_old = _position_new;
+              },
+              1000,
+              function () {
+                return _progress === 100 || me[PHASE] === "finalized";
+              });
 
 						// Resolve with ready emission
 						resolve(me.emit("audio5js/ready"));
