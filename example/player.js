@@ -25,6 +25,10 @@ define([
 					.prop("disabled", true);
 		},
 
+    "on/audio5js/buffering": function (toggle) {
+      this.info(toggle ? "buffering" : "buffered");
+    },
+
 		"on/audio5js/progress": function (loaded) {
 			var me = this;
 			var duration = me.prop("duration") || 0;

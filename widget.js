@@ -3,7 +3,7 @@ define([
 	"./config",
 	"audio5js",
 	"troopjs-util/merge",
-	"when/when",
+	"when",
   "when/poll",
 	"poly/array",
 	"poly/object"
@@ -130,6 +130,7 @@ define([
 					"throw_errors": false,
 					"ready": function () {
 						var self = this;
+            var _playing;
             var _progress;
             var _position_new;
             var _position_old;
@@ -160,30 +161,53 @@ define([
 							return self[key];
 						});
 
-            me.on("audio5js/timeupdate", function (position) {
-              _position_new = position;
+            me.on("audio5js/progress", function _(progress) {
+              _progress = progress;
             });
 
-            me.on("audio5js/progress", function (progress) {
-              _progress = progress;
+            me.on("audio5js/play", function () {
+              _playing = true;
+            });
+
+            me.on("audio5js/pause", function () {
+              _playing = false;
+            });
+
+            me.on("audio5js/ended", function () {
+              _playing = false;
+            });
+
+            me.on("audio5js/timeupdate", function _timeupdate (position) {
+              _position_new = position;
             });
 
             poll(
               function () {
-                if (_progress === 100 && me["buffering"] === true) {
-                  me.emit("audio5js/is/buffering", me["buffering"] = false);
+                if (_playing === false) {
+                  if (me["buffering"] === true) {
+                    me.emit("audio5js/buffering", me["buffering"] = false);
+                  }
                 }
-                if (_position_new === _position_old && me["buffering"] === false) {
-                  me.emit("audio5js/is/buffering", me["buffering"] = true);
-                }
-                else if (me["buffering"] === false) {
-                  me.emit("audio5js/is/buffering", me["buffering"] = true);
+                else {
+                  // If we have the whole file and we were buffering
+                  if (_progress === 100 && me["buffering"] === true) {
+                    me.emit("audio5js/buffering", me["buffering"] = false);
+                  }
+                  // If the position has not moved since last update and we were not buffering
+                  else if (_position_new === _position_old && me["buffering"] === false) {
+                    me.emit("audio5js/buffering", me["buffering"] = true);
+                  }
+                  // If we are not buffering
+                  else if (me["buffering"] === false) {
+                    me.emit("audio5js/buffering", me["buffering"] = true);
+                  }
                 }
 
                 _position_old = _position_new;
               },
               1000,
               function () {
+                // Stop polling when we've loaded the whole file or we're finalized
                 return _progress === 100 || me[PHASE] === "finalized";
               });
 
