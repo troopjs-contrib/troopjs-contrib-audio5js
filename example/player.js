@@ -25,7 +25,7 @@ define([
 					.prop("disabled", true);
 		},
 
-		"on/audio5js/is/buffering": function (toggle) {
+		"on/audio5js/buffering": function (toggle) {
 			var me = this;
 			var message = toggle ? "buffering..." : "playing >";
 

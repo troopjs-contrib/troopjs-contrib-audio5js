@@ -19,6 +19,7 @@ define([
 	var NOTIFY = "notify";
 	var PLAY = "play";
 	var PAUSE = "pause";
+	var	PHASE = "phase";
 	var PLAYING = "playing";
 	var RESOLVE_EVENTS = {
 		"seek": [ "seeked" ],
@@ -28,59 +29,6 @@ define([
 		"seek": [ "seeking" ],
 		"load": [ "loadstart", "loadedmetadata" ]
 	};
-	var $ELEMENT = "$element";
-	var CUE_IN = "cueIn";
-
-	var last_interval_position = 0;
-	var last_position = 0;
-	var last_load_percent = 0;
-	var buffering_check = true;
-
-	function check_buffering() {
-
-		var me = this;
-		var $element = me[$ELEMENT];
-		var $data = $element.data();
-		var cue_in = CUE_IN in $data
-			? parseFloat($data[CUE_IN])
-				: 0;
-
-		buffering_check = true;
-
-		// cue point has not been seeked yet
-		if(last_position < cue_in) {
-			me.emit("audio5js/is/buffering", true);
-		}
-		// cue point has been seeked
-		else {
-			var buffering_check_interval = poll(function() {
-				temp = last_position;
-
-				// explicit request to stop checking
-				if(!buffering_check) {
-					me.emit("audio5js/is/buffering", false);
-				}
-				// audio is fully downloaded
-				else if(last_load_percent == 100) {
-					me.emit("audio5js/is/buffering", false);
-				}
-				// position is the same as in the last iteration
-				else if (last_interval_position == temp) {
-					me.emit("audio5js/is/buffering", true);
-				}
-				// position is different to an iteration ago
-				else {
-					me.emit("audio5js/is/buffering", false);
-				}
-
-				last_interval_position = temp;
-			},
-			1000,
-			function() {
-				return ( (!buffering_check) || (last_load_percent == 100) );
-			});
-		}
-	}
 
 	return Widget.extend({
 		"sig/initialize": function () {
@@ -181,6 +129,10 @@ define([
 					"throw_errors": false,
 					"ready": function () {
 						var self = this;
+						var _position_old = 0;
+						var _position_new = 0;
+						var _progress = 0;
+						var _playing = false;
 
 						// Process EVENTS
 						Object
@@ -209,34 +161,56 @@ define([
 						});
 
 						me.on("audio5js/timeupdate", function (position, duration) {
-							last_position = position;
+							_position_new = position;
 						});
+
+						me.on("audio5js/progress", function (load_percent) {
+							_progress = load_percent;
+						});
+
+						me.on("audio5js/play", function () {
+							_playing = true;
+						});
+
+						me.on("audio5js/pause", function () {
+							_playing = false;
+						});
+
+						me.on("audio5js/ended", function () {
+							_playing = false;
+						});
+
+						poll(
+							function() {
+								// explicit request to stop checking
+								if(_playing === false) {
+									me.emit("audio5js/buffering", false);
+								}
+								// audio is fully downloaded
+								else if(_progress === 100) {
+									me.emit("audio5js/buffering", false);
+								}
+								// position is the same as in the last iteration
+								else if (_position_old === _position_new) {
+									me.emit("audio5js/buffering", true);
+								}
+								// position is different to an iteration ago
+								else {
+									me.emit("audio5js/buffering", false);
+								}
+
+								_position_old = _position_new;
+							},
+							1000,
+							function() {
+								return ( (_progress === 100) || (me[PHASE] === "finalized") );
+							});
 
 						// Resolve with ready emission
 						resolve(me.emit("audio5js/ready"));
 					}
 				}));
 			});
-		},
-
-		"on/audio5js/progress": function (load_percent) {
-			last_load_percent = load_percent;
-		},
-
-		"on/audio5js/play": function () {
-			check_buffering.call(this);
-		},
-
-		"on/audio5js/pause": function () {
-			buffering_check = false;
-		},
-
-		"on/audio5js/ended": function () {
-			buffering_check = false;
-		},
-
-		"sig/stop": function () {
-			buffering_check = false;
-		},
+		}
 	});
 });
