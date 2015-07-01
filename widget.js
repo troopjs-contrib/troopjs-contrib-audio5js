@@ -122,7 +122,7 @@ define([
 			// Wrap player instantiation in task
 			return me.task(function (resolve) {
 				// Create player
-				new Audio5js(merge.call({}, SETTINGS, {
+				new Audio5js(merge.call({
 					"format_time": false,
 					"throw_errors": false,
 					"ready": function () {
@@ -157,7 +157,7 @@ define([
 						// Resolve with ready emission
 						resolve(me.emit("audio5js/ready"));
 					}
-				}));
+				}, SETTINGS));
 			});
 		}
 	});
