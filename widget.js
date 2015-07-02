@@ -122,7 +122,7 @@ define([
 			// Wrap player instantiation in task
 			return me.task(function (resolve) {
 				// Create player
-				new Audio5js(merge.call({
+				me.player = new Audio5js(merge.call({
 					"format_time": false,
 					"throw_errors": false,
 					"ready": function () {
