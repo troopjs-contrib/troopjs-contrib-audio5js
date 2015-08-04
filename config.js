@@ -20,6 +20,7 @@ define([
 			"ended": "audio5js/ended",
 			"error": "audio5js/error",
 			"timeupdate": "audio5js/timeupdate",
+			"ready": "audio5js/ready",
 			"progress": "audio5js/progress",
 			"loadstart": "audio5js/loadstart",
 			"loadedmetadata": "audio5js/loadedmetadata",
